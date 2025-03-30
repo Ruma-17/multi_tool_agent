@@ -1,60 +1,41 @@
-from tools import calculator, search, define
+# main.py
 import os
-from openai import OpenAI
+from tools import calculator_tool, search_tool, define_tool, query_llm
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-import re
+def invoke_tools(query: str) -> str:
+    """
+    Invoke the correct tool based on the user's query.
+    Args:
+        query (str): The user's query.
+    Returns:
+        str: The result from the invoked tool.
+    """
+    llm_prompt = f"User's query: {query}\nWhich tool should be used?"
+    tool_name = query_llm(llm_prompt)  # Get the correct tool name based on the query
+
+    if tool_name == 'calculator_tool':
+        # Call the calculator tool
+        return calculator_tool(query)  # Assuming query is an expression like "2+2"
+    elif tool_name == 'search_tool':
+        # Call the search tool
+        return search_tool(query)  # Assuming query is a search term like "best pizza places in New York"
+    elif tool_name == 'define_tool':
+        # Call the define tool
+        return define_tool(query)  # Assuming query is a term like "Artificial Intelligence"
+    else:
+        return "No valid tool identified."
 
 
-
-tools = {"calculator": calculator, "search": search, "define": define}
-
-PREFIX = """You are an intelligent agent that can reason and use tools.
-You have access to the following tools:
-
-calculator(expr: str) — evaluate math expressions
-search(query: str) — look up factual info
-define(term: str) — give definitions
-
-You will be given a question. Think step by step and use the appropriate tool if needed. Format your responses like:
-
-Thought: ...
-Action: <tool>(<input>)
-Observation: ...
-... (repeat)
-Answer: <final answer>
-
-You are not to rerieve any data yourself. If the data has not been provided to you, omit 'Answer' from your response format.
-
-Begin!
-"""
-
-def parse_action(output):
-    match = re.search(r'Action: (\w+)\((.*)\)', output)
-    if match:
-        return match.group(1), match.group(2).strip().strip("'").strip('"')
-    return None, None
-
-def run_agent(question, llm_fn):
-    history = PREFIX + f"\nQuestion: {question}\n"
+def main():
+    """
+    Main function to handle user input and invoke appropriate tools.
+    """
     while True:
-        response = llm_fn(history)
-        print(response.strip())
-        if "Answer:" in response:
-            return response.split("Answer:")[-1].strip()
-        tool, arg = parse_action(response)
-        if tool in tools:
-            observation = tools[tool](arg)
-        else:
-            observation = f"Unknown tool: {tool}"
-        history += f"{response}\nObservation: {observation}\n"
-
-# Example usage
-def call_openai(prompt):
-    response = client.chat.completions.create(model="gpt-3.5-turbo",
-    messages=[{ "role": "user", "content": prompt }])
-    return response.choices[0].message.content
+        query = input("Please enter your query (or 'exit' to quit): ")
+        if query.lower() == 'exit':
+            break
+        response = invoke_tools(query)
+        print(response)
 
 if __name__ == "__main__":
-    answer = run_agent("What is the total population of India? How does it compare to the USA in percentage?", call_openai)
-    print("Final Answer:", answer)
+    main()
